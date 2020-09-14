@@ -1,7 +1,8 @@
 import RPi.GPIO as GPIO 
 import Keypad
-
+import sys
 import time
+import serial
 import busio
 import board
 import adafruit_amg88xx
@@ -53,10 +54,56 @@ def loopMatriz():
 		arquivo.write('\n')
 	arquivo.write('---\n')
 	arquivo.close()
+	return (seq)
 print('comeca o jogo')
+
+def getGPS():
+	SERIAL_PORT= "/dev/ttyAMA0"
+	ser = serial.Serial(SERIAL_PORT, baudrate=9600 , timeout=5)
+	ser.write("AT+CGPSPWR=1\r".encode('utf-8'))
+	print("GPS ATIVADO")
+	time.sleep(2)
+	ser.write("AT+CGPSSTATUS?\r".encode('utf-8'))
+	time.sleep(6)
+	ser.write("AT+CGPSINF=4\r".encode('utf-8'))
+	time.sleep(2)
+	response =  ser.readlines()
+	#print(response[7])
+	posta=str(response[7]).split(',');
+	#print(posta)
+	latitude=posta[1]
+	ns=posta[2]
+	longitude=posta[3]
+	ew=posta[4]
+	resposta="GPS: "+ns+" lat:"+latitude+" "+ew+" long:"+longitude
+	return(resposta)
+	
+def sendSMS(conteudo):
+	
+	SERIAL_PORT= "/dev/ttyAMA0"
+	ser = serial.Serial(SERIAL_PORT, baudrate=9600 , timeout=5)
+	ser.write("ATH\r".encode('utf-8'))
+	time.sleep(3)
+	ser.write("AT+CMGF=1\r".encode('utf-8'))
+	print("SMS ATIVADO")
+	time.sleep(3)
+	ser.write('AT+CMGS= "79996344527"\r'.encode('utf-8'))
+	print("mandando mensagem")
+	time.sleep(3)
+	msg=conteudo+chr(26)
+	ser.write(msg.encode('utf-8'))
+	time.sleep(3)
+	print("mensagem enviada")
+	
+
 try:
 	while(True):
-		loopMatriz()
+		sequencia=loopMatriz()
+		
+		coordenadas=getGPS()
+	
+		sms="sequencia: "+sequencia+" "+coordenadas
+		sendSMS(sms)
 except KeyboardInterrupt:
 	GPIO.cleanup()
 
